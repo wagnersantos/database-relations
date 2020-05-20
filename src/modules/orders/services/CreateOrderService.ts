@@ -18,16 +18,69 @@ interface IRequest {
 }
 
 @injectable()
-class CreateProductService {
+class CreateOrderService {
   constructor(
+    @inject('OrdersRepository')
     private ordersRepository: IOrdersRepository,
+
+    @inject('ProductsRepository')
     private productsRepository: IProductsRepository,
+
+    @inject('CustomersRepository')
     private customersRepository: ICustomersRepository,
   ) {}
 
   public async execute({ customer_id, products }: IRequest): Promise<Order> {
-    // TODO
+    const customer = await this.customersRepository.findById(customer_id);
+
+    if (!customer) {
+      throw new AppError('This customer does not exists!');
+    }
+
+    const findProducts = await this.productsRepository.findAllById(products);
+
+    if (!findProducts.length) {
+      throw new AppError('This products does not exists!');
+    }
+
+    products.map(product =>
+      findProducts.forEach((productFilter, _) => {
+        if (
+          product.id === productFilter.id &&
+          product.quantity > productFilter.quantity
+        ) {
+          throw new AppError('Product insuficient quantity');
+        }
+      }),
+    );
+
+    await this.productsRepository.updateQuantity(products);
+
+    const finalResulProd = findProducts.map(product => {
+      const prod = products.filter(
+        (productFilter, _) => productFilter.id === product.id,
+      );
+
+      return {
+        product_id: product.id,
+        price: product.price,
+        quantity: prod[0].quantity,
+      };
+    });
+
+    const order = await this.ordersRepository.create({
+      customer,
+      products: finalResulProd,
+    });
+
+    delete order.customer_id;
+    const newOrder = {
+      customer,
+      ...order,
+    };
+
+    return newOrder;
   }
 }
 
-export default CreateProductService;
+export default CreateOrderService;

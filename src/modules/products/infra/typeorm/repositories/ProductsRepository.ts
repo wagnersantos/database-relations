@@ -1,4 +1,4 @@
-import { getRepository, Repository, In } from 'typeorm';
+import { getRepository, Repository } from 'typeorm';
 
 import IProductsRepository from '@modules/products/repositories/IProductsRepository';
 import ICreateProductDTO from '@modules/products/dtos/ICreateProductDTO';
@@ -41,9 +41,7 @@ class ProductsRepository implements IProductsRepository {
   }
 
   public async findAllById(products: IFindProducts[]): Promise<Product[]> {
-    const findProducts = await this.ormRepository.find({
-      where: { products },
-    });
+    const findProducts = await this.ormRepository.findByIds(products);
 
     return findProducts;
   }
@@ -51,21 +49,18 @@ class ProductsRepository implements IProductsRepository {
   public async updateQuantity(
     products: IUpdateProductsQuantityDTO[],
   ): Promise<Product[]> {
-    const { id } = { id: In(products) };
-    const newQuantity = { quantity: In(products) };
+    products.forEach(product => {
+      this.ormRepository
+        .createQueryBuilder()
+        .update(Product)
+        .set({ quantity: () => `quantity - ${product.quantity}` })
+        .where('id = :id', { id: `${product.id}` })
+        .execute();
+    });
 
-    this.ormRepository
-      .createQueryBuilder()
-      .update('products')
-      .set({ quantity: () => `quantity - ${newQuantity}` })
-      .where(id)
-      .returning('quantity');
+    const prods = await this.findAllById(products);
 
-    const product = await this.ormRepository.find({ where: { id } });
-
-    await this.ormRepository.save(product);
-
-    return product;
+    return prods;
   }
 }
 

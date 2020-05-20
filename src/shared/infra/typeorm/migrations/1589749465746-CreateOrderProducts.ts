@@ -29,7 +29,9 @@ export default class CreateOrderProducts1589749465746
           },
           {
             name: 'price',
-            type: 'money',
+            type: 'decimal',
+            scale: 2,
+            precision: 5,
           },
           {
             name: 'quantity',
